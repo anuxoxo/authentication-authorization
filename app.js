@@ -1,7 +1,8 @@
 //jshint esversion:6
 require('dotenv').config()
 const express = require('express');
-const md5 = require('md5');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 const mongoose = require('mongoose');
 mongoose.connect('mongodb://localhost:27017/userDB', { useNewUrlParser: true, useUnifiedTopology: true });
 
@@ -31,19 +32,23 @@ app.route('/register')
 
         const { email, password } = req.body;
 
-        const newUser = new User({
-            email: email,
-            password: md5(password),
+        bcrypt.hash(password, saltRounds, function (err, hash) {
+            const newUser = new User({
+                email: email,
+                password: hash,
+            });
+
+            newUser.save((err) => {
+                if (err) {
+                    console.log(err);
+                }
+                else {
+                    res.render('secrets');
+                }
+            })
         });
 
-        newUser.save((err) => {
-            if (err) {
-                console.log(err);
-            }
-            else {
-                res.render('secrets');
-            }
-        })
+
     });
 
 app.route('/login')
@@ -58,18 +63,14 @@ app.route('/login')
             if (err) {
                 console.log(err);
             } else {
-                if (foundUser.password === md5(password)) {
-                    res.render('secrets');
-                }
+                bcrypt.compare(password, foundUser.password, function (err, result) {
+                    if (result)
+                        res.render('secrets');
+                });
             }
         })
-    })
+    });
 
-
-
-// app.get('/submit', (req, res) => {
-//     res.render('submit');
-// });
 
 
 app.listen(PORT, () => console.log(`Server running at port ${PORT}: http://localhost:${PORT}/`))
